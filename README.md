@@ -1,6 +1,10 @@
 # Delta OAuth 2.0 Example
 
-## Go to `src/routers/index.ts` for implementation
+## Go to `src/routers/index.ts` for oauth implementation
+
+## How to run
+- Run `npm install`
+- Run `npm run dev-run`
 
 ## .env file
 ```

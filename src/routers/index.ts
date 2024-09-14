@@ -3,18 +3,22 @@ import { Issuer, Client, TokenSet, generators, custom } from "openid-client";
 
 const router = Router();
 
+// Environment variables
 const port = process.env.EXPRESS_PORT;
 const clientId = process.env.ROBLOX_OAUTH_CLIENT_ID;
 const clientSecret = process.env.ROBLOX_OAUTH_CLIENT_SECRET;
 
+// Secure cookie configuration
 const secureCookieConfig = {
     secure: true,
     httpOnly: true,
     signed: true,
 };
 
+// OpenID Client
 let client: Client;
 
+// Initialize OpenID Client
 async function initializeClient() {
     const issuer = await Issuer.discover(
         "https://apis.roblox.com/oauth/.well-known/openid-configuration"
@@ -29,15 +33,18 @@ async function initializeClient() {
         id_token_signed_response_alg: "ES256",
     });
 
+    // Set clock tolerance
     client[custom.clock_tolerance] = 180;
 }
 
 initializeClient().catch(console.error);
 
+// Middleware to check if user is logged in
 async function checkLoggedIn(req: Request, res: Response, next: NextFunction) {
     if (req.signedCookies.tokenSet) {
         let tokenSet = new TokenSet(req.signedCookies.tokenSet);
 
+        // Refresh token if expired
         if (tokenSet.expired()) {
             tokenSet = await client.refresh(tokenSet);
             res.cookie("tokenSet", tokenSet, secureCookieConfig);
@@ -49,10 +56,12 @@ async function checkLoggedIn(req: Request, res: Response, next: NextFunction) {
     }
 }
 
+// Root route
 router.get("/", checkLoggedIn, (req: Request, res: Response) => {
     res.redirect("/home");
 });
 
+// Login route
 router.get("/login", (req: Request, res: Response) => {
     const state = generators.state();
     const nonce = generators.nonce();
@@ -68,6 +77,8 @@ router.get("/login", (req: Request, res: Response) => {
             })
         );
 });
+
+// Logout route
 router.get("/logout", async (req: Request, res: Response) => {
     if (req.signedCookies.tokenSet) {
         client.revoke(req.signedCookies.tokenSet.refresh_token);
@@ -75,6 +86,7 @@ router.get("/logout", async (req: Request, res: Response) => {
     res.clearCookie("tokenSet").redirect("/");
 });
 
+// OAuth callback route
 router.get("/oauth/callback", async (req: Request, res: Response) => {
     const params = client.callbackParams(req);
     const tokenSet = await client.callback(
@@ -93,11 +105,13 @@ router.get("/oauth/callback", async (req: Request, res: Response) => {
         .redirect("/home");
 });
 
+// Home route
 router.get("/home", checkLoggedIn, (req: Request, res: Response) => {
     const tokenSet = new TokenSet(req.signedCookies.tokenSet);
     res.render("index", { user: tokenSet.claims() });
 });
 
+// Message sending route
 router.post("/message", checkLoggedIn, async (req: Request, res: Response) => {
     const message = req.body.message;
     const apiUrl = `https://apis.roblox.com/messaging-service/v1/universes/${req.body.universeId}/topics/${req.body.topic}`;
