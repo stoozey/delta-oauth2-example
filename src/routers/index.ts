@@ -4,6 +4,7 @@ import { Issuer, Client, TokenSet, generators, custom } from "openid-client";
 const router = Router();
 
 // Environment variables
+const url = process.env.EXPRESS_URL;
 const port = process.env.EXPRESS_PORT;
 const clientId = process.env.ROBLOX_OAUTH_CLIENT_ID;
 const clientSecret = process.env.ROBLOX_OAUTH_CLIENT_SECRET;
@@ -15,10 +16,9 @@ const secureCookieConfig = {
     signed: true,
 };
 
-// OpenID Client
+// Initialize OpenID Client
 let client: Client;
 
-// Initialize OpenID Client
 async function initializeClient() {
     const issuer = await Issuer.discover(
         "https://apis.roblox.com/oauth/.well-known/openid-configuration"
@@ -27,9 +27,9 @@ async function initializeClient() {
     client = new issuer.Client({
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uris: [`http://localhost:${port}/oauth/callback`],
+        redirect_uris: [`http://${url}:${port}/oauth/callback`],
         response_types: ["code"],
-        scope: "openid profile universe-messaging-service:publish",
+        scope: "openid profile universe-messaging-service:publish", // Whatever scopes were added to the app
         id_token_signed_response_alg: "ES256",
     });
 
@@ -56,7 +56,7 @@ async function checkLoggedIn(req: Request, res: Response, next: NextFunction) {
     }
 }
 
-// Root route
+// Redirect to home route
 router.get("/", checkLoggedIn, (req: Request, res: Response) => {
     res.redirect("/home");
 });
@@ -90,7 +90,7 @@ router.get("/logout", async (req: Request, res: Response) => {
 router.get("/oauth/callback", async (req: Request, res: Response) => {
     const params = client.callbackParams(req);
     const tokenSet = await client.callback(
-        `http://localhost:${port}/oauth/callback`,
+        `http://${url}:${port}/oauth/callback`,
         params,
         {
             state: req.signedCookies.state,
